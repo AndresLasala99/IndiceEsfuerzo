@@ -9,8 +9,8 @@ function errorHandler(err, req, res, next) {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ message: 'La foto es demasiado pesada. Probá con otra.' });
   }
-  if (err.code === 11000 && err.keyPattern?.email) {
-    return res.status(409).json({ message: 'Ya existe una cuenta con ese email.' });
+  if (err.code === 11000 && err.keyPattern?.nameKey) {
+    return res.status(409).json({ message: 'Ya hay un jugador con ese nombre en la lista.' });
   }
   if (err instanceof AppError) {
     return res.status(err.status).json({ message: err.message });
