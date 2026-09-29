@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
-const { isDateKey } = require('../utils/date');
+const { isDateKey, isMonthKey } = require('../utils/date');
+const { METRICS } = require('../utils/metrics');
 
 const MAX_PHOTO_CHARS = 1_500_000; // ~1 MB de imagen
 const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -17,17 +18,24 @@ function checkPhoto(photo) {
   return null;
 }
 
-const checkValue = (v) => (Number.isInteger(v) && v >= 1 && v <= 5 ? null : 'El valor tiene que ser un número del 1 al 5.');
+const checkValue = (v) => (Number.isInteger(v) && v >= 1 && v <= 5 ? null : 'Cada valor tiene que ser un número del 1 al 5.');
+const checkMetric = (m) => (METRICS.includes(m) ? null : 'Medición inválida.');
 
 function idCheck(req) {
   return mongoose.isValidObjectId(req.params.id) ? null : 'Jugador inválido.';
 }
 
 function createCheck(req) {
-  const { name, photo, value } = req.body || {};
-  return checkName(name)
-    || (photo !== undefined ? checkPhoto(photo) : null)
-    || (value !== undefined && value !== null ? checkValue(value) : null);
+  const body = req.body || {};
+  const nameOrPhoto = checkName(body.name) || (body.photo !== undefined ? checkPhoto(body.photo) : null);
+  if (nameOrPhoto) return nameOrPhoto;
+  for (const m of METRICS) {
+    if (body[m] !== undefined && body[m] !== null) {
+      const err = checkValue(body[m]);
+      if (err) return err;
+    }
+  }
+  return null;
 }
 
 function updateCheck(req) {
@@ -38,8 +46,12 @@ function updateCheck(req) {
     || (photo !== undefined ? checkPhoto(photo) : null);
 }
 
-function valueCheck(req) {
-  return idCheck(req) || checkValue(req.body?.value);
+function setValueCheck(req) {
+  return idCheck(req) || checkMetric(req.body?.metric) || checkValue(req.body?.value);
+}
+
+function clearValueCheck(req) {
+  return idCheck(req) || checkMetric(req.params.metric);
 }
 
 function dateQueryCheck(req) {
@@ -47,4 +59,8 @@ function dateQueryCheck(req) {
   return isDateKey(req.query.date) ? null : 'Fecha inválida. Formato esperado: AAAA-MM-DD.';
 }
 
-module.exports = { idCheck, createCheck, updateCheck, valueCheck, dateQueryCheck };
+function monthQueryCheck(req) {
+  return isMonthKey(req.query.month) ? null : 'Mes inválido. Formato esperado: AAAA-MM.';
+}
+
+module.exports = { monthQueryCheck, idCheck, createCheck, updateCheck, setValueCheck, clearValueCheck, dateQueryCheck };

@@ -39,3 +39,6 @@ export function monthGrid(monthKey) {
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7).map((d) => (d ? toKey(y, m, d) : null)));
   return weeks;
 }
+
+export const dayMonth = (dateKey) =>
+  new Intl.DateTimeFormat('es-UY', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(parse(dateKey));

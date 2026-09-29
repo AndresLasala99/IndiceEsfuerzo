@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { longDate, monthOf, todayUY } from './dates';
+import { METRICS, toneOf } from './metrics';
 import AddPlayer from './components/AddPlayer.jsx';
 import Avatar from './components/Avatar.jsx';
 import Calendar from './components/Calendar.jsx';
+import MonthView from './components/MonthView.jsx';
+import MonthSummary from './components/MonthSummary.jsx';
 import PlayerSheet from './components/PlayerSheet.jsx';
 
 export default function App() {
@@ -14,6 +17,10 @@ export default function App() {
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [view, setView] = useState('day'); // 'day' o 'month'
+  // Cambia cada vez que se modifica algo, para recalcular los promedios del mes
+  const [refreshKey, setRefreshKey] = useState(0);
+  const bump = () => setRefreshKey((k) => k + 1);
 
   const load = useCallback(async () => {
     try {
@@ -39,21 +46,30 @@ export default function App() {
 
   function pickDay(key) {
     setSelected(key === todayUY() ? null : key);
+    setView('day');
   }
 
   function goToday() {
     setSelected(null);
     setMonth(monthOf(todayUY()));
+    setView('day');
   }
 
   // Actualiza un jugador en la lista sin recargar todo
   function patchPlayer(p) {
     setData((d) => {
       const players = d.players.map((x) => (x.id === p.id ? p : x));
-      const values = players.map((x) => x.value).filter((v) => v !== null);
-      const average = values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null;
-      return { ...d, players, registered: values.length, average };
+      const summary = {};
+      for (const m of METRICS) {
+        const values = players.map((x) => x[m.key]).filter((v) => v !== null);
+        summary[m.key] = {
+          registered: values.length,
+          average: values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null,
+        };
+      }
+      return { ...d, players, summary };
     });
+    bump();
   }
 
   const openPlayer = data?.players.find((p) => p.id === openId);
@@ -74,13 +90,30 @@ export default function App() {
         </section>
 
         <section className="panel panel--list">
+          <div className="tabs" role="tablist" aria-label="Vista">
+            <button type="button" role="tab" aria-selected={view === 'day'} className={view === 'day' ? 'is-on' : ''} onClick={() => setView('day')}>Día</button>
+            <button type="button" role="tab" aria-selected={view === 'month'} className={view === 'month' ? 'is-on' : ''} onClick={() => setView('month')}>Mes</button>
+          </div>
+
+          {view === 'month' ? <MonthView month={month} /> : (
+          <>
           <div className="list-head">
             <h2>{isToday ? `Hoy, ${longDate(shownDate)}` : longDate(shownDate)}</h2>
             {data && data.total > 0 && (
-              <p className="muted">
-                {data.registered} de {data.total} cargaron
-                {data.average !== null && <>. Promedio <strong>{data.average}</strong></>}
-              </p>
+              <dl className="stats">
+                {METRICS.map((m) => {
+                  const st = data.summary[m.key];
+                  return (
+                    <div key={m.key} className="stat">
+                      <dt>{m.short}</dt>
+                      <dd>
+                        <strong>{st.average ?? '–'}</strong>
+                        <span className="muted"> promedio, {st.registered} de {data.total}</span>
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
             )}
             {data && !data.editable && (
               <p className="closed">Día cerrado. Los valores ya no se pueden modificar.</p>
@@ -102,14 +135,18 @@ export default function App() {
                 <p className="empty">La lista está vacía. Tocá "Agregar jugador" para sumar al primero.</p>
               ) : (
                 <ul className="players">
+                  <li className="players__cols" aria-hidden="true">
+                    <span />
+                    {METRICS.map((m) => <span key={m.key}>{m.short}</span>)}
+                  </li>
                   {data.players.map((p) => {
                     const content = (
                       <>
-                        <Avatar photo={p.photo} name={p.name} size={44} />
+                        <Avatar photo={p.photo} name={p.name} size={40} />
                         <span className="player-row__name">{p.name}</span>
-                        {p.value
-                          ? <span className={`chip effort-bg-${p.value}`} aria-label={`Esfuerzo ${p.value}`}>{p.value}</span>
-                          : <span className="chip chip--empty">{data.editable ? 'Cargar' : 'Sin dato'}</span>}
+                        {METRICS.map((m) => (p[m.key]
+                          ? <span key={m.key} className={`chip effort-bg-${toneOf(m, p[m.key])}`} aria-label={`${m.short} ${p[m.key]}`}>{p[m.key]}</span>
+                          : <span key={m.key} className="chip chip--empty" aria-label={`${m.short} sin dato`}>–</span>))}
                       </>
                     );
                     return (
@@ -130,7 +167,11 @@ export default function App() {
               )}
             </>
           )}
+          </>
+          )}
         </section>
+
+        <MonthSummary month={month} refreshKey={refreshKey} />
       </main>
 
       {openPlayer && (
@@ -138,14 +179,14 @@ export default function App() {
           player={openPlayer}
           onClose={() => setOpenId(null)}
           onChanged={patchPlayer}
-          onRemoved={() => { setOpenId(null); load(); }}
+          onRemoved={() => { setOpenId(null); load(); bump(); }}
         />
       )}
 
       {adding && (
         <AddPlayer
           onClose={() => setAdding(false)}
-          onAdded={() => { setAdding(false); load(); }}
+          onAdded={() => { setAdding(false); load(); bump(); }}
         />
       )}
     </>

@@ -1,22 +1,26 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { METRICS } from '../metrics';
+import MetricPicker from './MetricPicker.jsx';
 import Modal from './Modal.jsx';
 import PhotoInput from './PhotoInput.jsx';
-import Stairs from './Stairs.jsx';
 
 export default function AddPlayer({ onClose, onAdded }) {
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState('');
-  const [value, setValue] = useState(null);
+  const [values, setValues] = useState({ fatigue: null, sleep: null, effort: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Tocar el mismo número de nuevo lo desmarca
+  const toggle = (key) => (v) => setValues((s) => ({ ...s, [key]: s[key] === v ? null : v }));
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setError('');
     try {
-      await api('/players', { method: 'POST', body: { name, photo, value } });
+      await api('/players', { method: 'POST', body: { name, photo, ...values } });
       onAdded();
     } catch (err) {
       setError(err.message);
@@ -31,11 +35,10 @@ export default function AddPlayer({ onClose, onAdded }) {
         <label>Nombre y apellido
           <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} autoComplete="off" />
         </label>
-        <fieldset className="fieldset">
-          <legend>Índice de esfuerzo de hoy</legend>
-          <Stairs value={value} onChange={(v) => setValue(v === value ? null : v)} />
-          <small>Si todavía no entrenaste, podés dejarlo para después.</small>
-        </fieldset>
+        <p className="muted small">Los valores de hoy son opcionales. Se pueden cargar después tocando el nombre en la lista.</p>
+        {METRICS.map((m) => (
+          <MetricPicker key={m.key} metric={m} value={values[m.key]} onChange={toggle(m.key)} />
+        ))}
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn" disabled={busy}>{busy ? 'Agregando…' : 'Agregar jugador'}</button>
       </form>

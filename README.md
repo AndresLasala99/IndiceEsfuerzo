@@ -1,16 +1,26 @@
 # Índice Subjetivo del Esfuerzo
 
-Página única, sin usuarios ni inicio de sesión. Muestra la lista del plantel y cada jugador carga su índice de esfuerzo del día (1 a 5).
+Página única, sin usuarios ni inicio de sesión. Muestra la lista del plantel y cada jugador carga tres valores por día, del 1 al 5:
+
+| Medición | Cuándo | 1 | 5 |
+|---|---|---|---|
+| Fatiga | Antes de entrenar | Nada fatigado | Muy fatigado |
+| Calidad del sueño | Antes de entrenar | Durmió muy mal | Durmió muy bien |
+| Índice de esfuerzo | Después de entrenar | Muy suave | Máximo |
+
+Colores: turquesa = tranquilo, rojo = alerta. Por eso en sueño la escala va al revés (5 = verde/turquesa, 1 = rojo).
 
 Arquitectura: backend Express + MongoDB en capas (config / controllers / middlewares / model / routes / services / validators) y frontend React con Vite. Deploy en Render + Vercel + MongoDB Atlas.
 
 ## Cómo funciona
 
-- Al entrar se ve la lista de hoy: foto, nombre y el valor de cada jugador.
-- **Agregar jugador** (al final de la lista): foto, nombre y el valor de hoy. El valor se puede dejar para después.
-- Tocando un jugador se elige o cambia el valor de hoy. También se puede borrar el valor, editar el nombre o la foto, o eliminar al jugador.
-- El valor se puede cambiar hasta las 00:00 de Uruguay. Después ese día queda cerrado y al día siguiente el campo aparece vacío.
-- En el calendario se elige un día anterior para ver cómo quedó cada jugador (solo lectura), con cuántos cargaron y el promedio.
+- Al entrar se ve la lista de hoy: foto, nombre y las tres columnas (Fatiga, Sueño, Esfuerzo). Arriba, el promedio de cada una y cuántos cargaron.
+- **Agregar jugador** (al final de la lista): foto, nombre y los valores de hoy, todos opcionales.
+- Tocando un jugador se cargan o cambian sus valores de hoy, cada uno por separado (fatiga y sueño antes de entrenar, esfuerzo después). También se puede borrar un valor, editar el nombre o la foto, o eliminar al jugador (en "Editar nombre o foto").
+- Los valores se pueden cambiar hasta las 00:00 de Uruguay. Después ese día queda cerrado y al día siguiente los campos aparecen vacíos.
+- En el calendario se elige un día anterior para ver cómo quedó cada jugador (solo lectura).
+- Pestaña **Mes**: promedio general del plantel y promedio de cada jugador en fatiga, sueño y esfuerzo, para el mes que muestra el calendario. En el mes en curso se promedia lo cargado hasta el momento. Los días sin datos no cuentan (no se toman como cero).
+- **Promedios del mes** (sigue al mes que muestra el calendario): promedio general del plantel en fatiga, sueño y esfuerzo, y una tabla con el promedio de cada jugador en cada dato y cuántos días cargó. En el mes en curso se promedia lo cargado hasta el último dato ingresado.
 
 El "día" siempre lo decide el servidor con la hora de Montevideo, no la hora del celular.
 
@@ -22,11 +32,15 @@ No hay nombres repetidos: si ya existe "Juan Pérez", no se puede agregar otro i
 |---|---|---|
 | GET | /api/players | Lista con los valores de hoy |
 | GET | /api/players?date=AAAA-MM-DD | Lista con los valores de ese día |
-| POST | /api/players | Agrega jugador (nombre, foto opcional, valor opcional) |
+| GET | /api/players/summary?month=AAAA-MM | Promedios del mes: plantel y cada jugador |
+| GET | /api/players/month?month=AAAA-MM | Promedios del mes: plantel y cada jugador |
+| POST | /api/players | Agrega jugador (nombre, foto y valores opcionales: fatigue, sleep, effort) |
 | PATCH | /api/players/:id | Cambia nombre o foto |
 | DELETE | /api/players/:id | Elimina al jugador y su historial |
-| PUT | /api/players/:id/today | Guarda o cambia el valor de hoy |
-| DELETE | /api/players/:id/today | Borra el valor de hoy |
+| PUT | /api/players/:id/today | Guarda o cambia un valor de hoy. Cuerpo: `{ "metric": "fatigue" \| "sleep" \| "effort", "value": 1-5 }` |
+| DELETE | /api/players/:id/today/:metric | Borra un valor de hoy |
+
+Los registros de la versión anterior (solo esfuerzo) se convierten solos al nuevo formato la primera vez que arranca el servidor.
 
 ## Variables de entorno
 

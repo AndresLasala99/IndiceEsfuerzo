@@ -19,9 +19,17 @@ exports.remove = asyncHandler(async (req, res) => {
 });
 
 exports.setToday = asyncHandler(async (req, res) => {
-  res.json(await service.setToday(req.params.id, req.body.value));
+  res.json(await service.setToday(req.params.id, req.body.metric, req.body.value));
 });
 
 exports.clearToday = asyncHandler(async (req, res) => {
-  res.json(await service.clearToday(req.params.id));
+  res.json(await service.clearToday(req.params.id, req.params.metric));
+});
+
+exports.monthSummary = asyncHandler(async (req, res) => {
+  res.json(await service.monthSummary(req.query.month));
+});
+
+exports.month = asyncHandler(async (req, res) => {
+  res.json(await service.monthSummary(req.query.month));
 });

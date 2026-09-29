@@ -1,15 +1,19 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/player.controller');
 const validate = require('../middlewares/validate');
-const { idCheck, createCheck, updateCheck, valueCheck, dateQueryCheck } = require('../validators/player.validator');
+const v = require('../validators/player.validator');
 
-router.get('/', validate(dateQueryCheck), ctrl.list);
-router.post('/', validate(createCheck), ctrl.create);
-router.patch('/:id', validate(updateCheck), ctrl.update);
-router.delete('/:id', validate(idCheck), ctrl.remove);
+router.get('/', validate(v.dateQueryCheck), ctrl.list);
+router.get('/summary', validate(v.monthQueryCheck), ctrl.monthSummary);
+// Promedios del mes
+router.get('/month', validate(v.monthQueryCheck), ctrl.month);
 
-// Valor del día de hoy
-router.put('/:id/today', validate(valueCheck), ctrl.setToday);
-router.delete('/:id/today', validate(idCheck), ctrl.clearToday);
+router.post('/', validate(v.createCheck), ctrl.create);
+router.patch('/:id', validate(v.updateCheck), ctrl.update);
+router.delete('/:id', validate(v.idCheck), ctrl.remove);
+
+// Mediciones del día de hoy (fatigue, sleep, effort)
+router.put('/:id/today', validate(v.setValueCheck), ctrl.setToday);
+router.delete('/:id/today/:metric', validate(v.clearValueCheck), ctrl.clearToday);
 
 module.exports = router;
